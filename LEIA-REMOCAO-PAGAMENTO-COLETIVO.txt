@@ -1,0 +1,7 @@
+VaiComigo - Remocao da opcao pagamento coletivo
+
+A opcao foi retirada das telas de passageiro e motorista e o modulo JS removido. Pagamentos individuais PIX, dinheiro e maquininha foram preservados. As regras do Firestore nao foram alteradas, para evitar interrupcao de registros antigos.
+
+ATENCAO: pagamentos coletivos pendentes de versoes anteriores devem ser regularizados antes de publicar esta versao. Esta alteracao nao apaga registros do Firebase.
+
+Publique todos os arquivos desta pasta no mesmo hosting.

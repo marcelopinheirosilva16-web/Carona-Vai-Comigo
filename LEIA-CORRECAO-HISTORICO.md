@@ -1,0 +1,1 @@
+Correção: solicitações canceladas/recusadas não aparecem em Alterar Vagas. Solicitações pendentes podem ser canceladas e ocultadas. Viagens concluídas e pagas são ocultadas persistentemente via ocultadaPassageiro, sem apagar registros financeiros. Publique firestore.rules no Console Firebase. Teste com contas separadas e confira regras de segurança antes de produção.

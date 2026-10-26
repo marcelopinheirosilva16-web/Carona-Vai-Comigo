@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="img/icon-192.png">
+  <meta charset="UTF-8">
+  <meta name="description" content="Avalie sua experiência e envie sugestões para melhorar o VaiComigo.">
+  <meta name="theme-color" content="#124eae">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1565c0">
+  <title>Avalie o VaiComigo</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .app-rating-wrap{max-width:900px;margin:26px auto;padding:0 16px}
+    .app-rating-hero{background:linear-gradient(135deg,#0d47a1,#1565c0);color:#fff;border-radius:18px;padding:26px;margin-bottom:18px;box-shadow:0 12px 30px rgba(13,71,161,.18)}
+    .app-rating-hero h1{margin:0 0 8px;font-size:clamp(1.45rem,4vw,2rem);color:#fff}
+    .app-rating-hero p{margin:0;opacity:.92}
+    .app-rating-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+    .app-rating-card{background:rgba(255,255,255,.97);border:1px solid #e0e7ef;border-radius:16px;padding:22px;box-shadow:0 8px 24px rgba(18,43,74,.08);min-width:0}
+    .app-rating-card h2{font-size:1.15rem;color:#0d47a1;margin:0 0 14px}
+    .app-stars{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0 8px}
+    .app-star{border:0;background:transparent;padding:2px;color:#c5ccd5;font-size:2.25rem;line-height:1;cursor:pointer;transition:transform .12s,color .12s}
+    .app-star.selected{color:#f5b301}
+    .app-star:hover{transform:scale(1.12)}
+    .app-rating-hint{color:#667085;font-size:.9rem;min-height:1.3em}
+    .app-rating-card label{display:block;font-weight:650;margin:14px 0 6px}
+    .app-rating-card textarea{width:100%;min-height:125px;resize:vertical;border:1px solid #cfd8e3;border-radius:10px;padding:12px;font:inherit;box-sizing:border-box}
+    .app-rating-card textarea:focus{outline:2px solid #b8d5fb;border-color:#1565c0}
+    .app-rating-submit{width:100%;margin-top:14px;background:#16803c;color:white;border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:750;cursor:pointer}
+    .app-rating-submit:disabled{opacity:.65;cursor:wait}
+    .app-rating-summary{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:14px;border-radius:12px;background:#f1f7ff}
+    .app-rating-average{font-size:2rem;font-weight:800;color:#0d47a1;line-height:1}
+    .app-rating-small-stars{color:#f5b301;letter-spacing:1px}
+    .app-review{padding:14px 0;border-bottom:1px solid #edf0f4}
+    .app-review:last-child{border-bottom:0}
+    .app-review-top{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+    .app-review-name{font-weight:750;color:#26364a}
+    .app-review-date{font-size:.78rem;color:#7a8594}
+    .app-review-stars{color:#f5b301;letter-spacing:1px;margin:4px 0}
+    .app-review-comment{white-space:pre-wrap;overflow-wrap:anywhere;color:#465467}
+    .app-rating-empty{color:#687385;padding:12px 0}
+    .app-rating-notice{font-size:.82rem;color:#667085;margin-top:10px;line-height:1.5}
+    @media(max-width:720px){.app-rating-grid{grid-template-columns:1fr}.app-rating-hero{padding:21px}.app-rating-card{padding:18px}}
+  </style>
+<link rel="stylesheet" href="css/responsive-2026.css?v=1">
+</head>
+<body>
+  <div class="navbar">
+    <div class="wrap">
+      <div class="brand"><img src="img/logo.jpg" alt="VaiComigo" class="brand-logo"></div>
+      <nav id="menu"></nav>
+    </div>
+  </div>
+
+  <main class="app-rating-wrap">
+    <section class="app-rating-hero">
+      <h1>⭐ Avalie o VaiComigo</h1>
+      <p>Sua opinião ajuda a melhorar a experiência de passageiros e motoristas.</p>
+    </section>
+
+    <div class="app-rating-grid">
+      <section class="app-rating-card">
+        <h2 id="titulo-formulario">Deixe sua avaliação</h2>
+        <p>Escolha uma nota de 1 a 5 estrelas e conte como está sendo sua experiência.</p>
+        <form id="form-avaliacao-app">
+          <label for="estrelas-app">Sua nota</label>
+          <div class="app-stars" id="estrelas-app" role="group" aria-label="Escolha uma nota de 1 a 5">
+            <button class="app-star" type="button" data-nota="1" aria-label="1 estrela" aria-pressed="false">★</button>
+            <button class="app-star" type="button" data-nota="2" aria-label="2 estrelas" aria-pressed="false">★</button>
+            <button class="app-star" type="button" data-nota="3" aria-label="3 estrelas" aria-pressed="false">★</button>
+            <button class="app-star" type="button" data-nota="4" aria-label="4 estrelas" aria-pressed="false">★</button>
+            <button class="app-star" type="button" data-nota="5" aria-label="5 estrelas" aria-pressed="false">★</button>
+          </div>
+          <div id="texto-nota" class="app-rating-hint">Selecione as estrelas.</div>
+
+          <label for="comentario-app">Seu comentário</label>
+          <textarea id="comentario-app" minlength="3" maxlength="1000" required placeholder="O que você gosta no app? O que podemos melhorar?"></textarea>
+          <div class="app-rating-hint"><span id="contador-comentario">0</span>/1000 caracteres</div>
+          <button class="app-rating-submit" id="btn-enviar-avaliacao" type="submit">Enviar avaliação</button>
+          <p class="app-rating-notice">Sua avaliação ficará vinculada à sua conta. Você poderá editar sua própria avaliação depois. Não inclua telefone, endereço ou outras informações pessoais no comentário.</p>
+        </form>
+      </section>
+
+      <section class="app-rating-card">
+        <h2>O que os usuários estão dizendo</h2>
+        <div id="resumo-avaliacoes-app" class="app-rating-summary">
+          <div class="app-rating-average">—</div>
+          <div><div class="app-rating-small-stars">★★★★★</div><div class="app-rating-hint">Carregando avaliações...</div></div>
+        </div>
+        <div id="lista-avaliacoes-app"><p class="app-rating-empty">Carregando comentários...</p></div>
+      </section>
+    </div>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/avaliar-app.js"></script>
+<footer class="legal-links" style="text-align:center;padding:18px 12px;font-size:.9rem">
+  <a href="privacidade.html">Política de Privacidade</a> ·
+  <a href="politica-seguranca.html">Segurança e uso responsável</a> ·
+  <a href="seguranca.html">Central de Segurança</a>
+<div class="vaicomigo-contato-oficial" style="font-size:12px;text-align:center;padding:10px 12px;color:#536477;line-height:1.6">Email contato: <a href="mailto:caronavaicomigo@gmail.com" style="color:#1565c0;overflow-wrap:anywhere">caronavaicomigo@gmail.com</a></div></footer>
+  <script src="js/pwa.js" defer></script>
+</body>
+</html>

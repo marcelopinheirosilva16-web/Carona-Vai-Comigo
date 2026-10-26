@@ -1,0 +1,7 @@
+VaiComigo — versão de testes
+
+As referências VC-XXXXXXXXXX são abreviações visuais do ID do Firestore, NÃO sequências numéricas garantidas. O ID completo permanece inalterado no Firebase.
+
+Atenção: os botões PIX/WhatsApp existentes continuam funcionais. NÃO faça transferências reais durante simulações. Para produção, use outro projeto Firebase e revise regras, permissões e fluxos de pagamentos.
+
+Alterados: js/financeiro-admin.js, js/financeiro-motorista.js, js/pagamentos-passageiro.js e js/recebimentos-motorista.js.

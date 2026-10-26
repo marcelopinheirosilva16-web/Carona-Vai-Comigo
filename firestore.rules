@@ -1,0 +1,434 @@
+rules_version = '2';
+// VaiComigo — regras revisadas de segurança do Firestore.
+// Publique em Firebase Console > Firestore Database > Regras.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function logado() { return request.auth != null; }
+    function euSou(uid) { return logado() && request.auth.uid == uid; }
+    function ehAdmin() {
+      return logado() &&
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.admin == true;
+    }
+
+    match /usuarios/{uid} {
+      // O app atual lê perfis para montar navegação e exibir nomes.
+      allow read: if logado();
+      allow create: if euSou(uid)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.admin == false
+        && request.resource.data.bloqueado == false
+        && request.resource.data.tipo in ['passageiro', 'motorista', 'ambos'];
+      // Usuários editam somente campos de perfil. Não podem elevar privilégios,
+      // mudar tipo/UID, desbloquear a si mesmos ou se tornar administradores.
+      allow update: if (ehAdmin()
+        && (resource.data.admin != true
+          || (euSou(uid)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email','atualizadoEm'])
+            && request.resource.data.admin == true))) || (euSou(uid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['nome', 'telefone', 'cidade', 'bio', 'motorista', 'atualizadoEm', 'fotoUrl', 'fotoAtualizadaEm']));
+      // Titular não administrador pode encerrar o próprio perfil sem apagar o histórico.
+      allow update: if euSou(uid) && resource.data.admin == false
+        && resource.data.get('contaEncerrada', false) != true
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['nome','telefone','cidade','bio','fotoUrl','motorista','contaEncerrada','atualizadoEm'])
+        && request.resource.data.contaEncerrada == true
+        && request.resource.data.nome == 'Usuário desativado'
+        && request.resource.data.telefone == ''
+        && request.resource.data.cidade == ''
+        && request.resource.data.bio == ''
+        && request.resource.data.fotoUrl == ''
+        && request.resource.data.motorista == false
+        && request.resource.data.atualizadoEm == request.time;
+      allow delete: if resource.data.admin != true && (ehAdmin() || euSou(uid));
+    }
+
+    // Pedido de exclusão: apenas o titular cria seu próprio pedido.
+    // Somente administrador pode ler e processar pedidos de terceiros.
+
+
+    // Pedidos de exclusão: titular pode criar e atualizar data do pedido pendente.
+    match /solicitacoesExclusao/{uid} {
+      allow get: if euSou(uid) || ehAdmin();
+      allow list: if ehAdmin();
+      allow create: if euSou(uid) && !ehAdmin()
+        && request.resource.data.keys().hasOnly(['uid','status','solicitadoEm','atualizadoEm'])
+        && request.resource.data.uid == uid
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.solicitadoEm == request.time
+        && request.resource.data.atualizadoEm == request.time;
+      allow update: if ehAdmin() || (euSou(uid) && !ehAdmin()
+        && resource.data.status == 'pendente'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['atualizadoEm'])
+        && request.resource.data.atualizadoEm == request.time);
+      allow delete: if ehAdmin();
+    }
+
+    match /veiculos/{uid} {
+      allow read: if logado();
+      allow create, update: if euSou(uid) || ehAdmin();
+      allow delete: if euSou(uid) || ehAdmin();
+    }
+
+    match /viagens/{id} {
+      allow read: if logado();
+      allow create: if logado()
+        && request.resource.data.motoristaUid == request.auth.uid
+        && request.resource.data.status == 'aberta'
+        && request.resource.data.vagasDisponiveis is number
+        && request.resource.data.vagasDisponiveis > 0;
+      // Motorista dono pode atualizar apenas estado, localização e vagas.
+      // motoristaUid não pode ser transferido por uma atualização comum.
+      allow update: if ehAdmin() || (logado()
+        && resource.data.motoristaUid == request.auth.uid
+        && request.resource.data.motoristaUid == resource.data.motoristaUid
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['ocultadaMotorista'])
+          || (resource.data.status == 'concluida'
+            && request.resource.data.status == 'concluida'
+            && request.resource.data.ocultadaMotorista == true))
+        && (!('status' in request.resource.data)
+          || request.resource.data.status == resource.data.status
+          || (resource.data.status == 'aberta' && request.resource.data.status in ['em_andamento', 'cancelada'])
+          || (resource.data.status == 'em_andamento' && request.resource.data.status == 'concluida'))
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'localizacaoAtual', 'vagasDisponiveis', 'vagasTotais', 'vagasOcupadas', 'atualizadoEm', 'encerradoEm', 'ocultadaMotorista'])
+        && (!('vagasDisponiveis' in request.resource.data)
+          || (request.resource.data.vagasDisponiveis is number
+            && request.resource.data.vagasDisponiveis >= 0))
+        && (!('vagasTotais' in request.resource.data)
+          || (request.resource.data.vagasTotais is number
+            && request.resource.data.vagasTotais >= 0))
+        && (!('vagasOcupadas' in request.resource.data)
+          || (request.resource.data.vagasOcupadas is number
+            && request.resource.data.vagasOcupadas >= 0)));
+      allow delete: if ehAdmin() || (logado() && resource.data.motoristaUid == request.auth.uid && resource.data.status != 'concluida');
+    }
+
+    // Dados de recebimento: todos os motoristas logados podem ler, somente admin altera.
+    match /configFinanceira/{id} {
+      allow read: if logado() && id == 'pix';
+      allow write: if ehAdmin() && id == 'pix';
+    }
+
+    // Um documento por viagem concluída. Valor calculado do preço da viagem
+    // com arredondamento para centavos (preços em reais, com até 2 casas).
+    // Pix do motorista: autenticados podem consultar a chave para pagamento.
+    match /pixMotoristas/{uid} {
+      allow read: if logado();
+      allow create, update: if euSou(uid)
+        && request.resource.data.keys().hasOnly(['motoristaUid','chavePix','whatsapp','atualizadoEm'])
+        && request.resource.data.motoristaUid == uid
+        && request.resource.data.chavePix is string
+        && request.resource.data.chavePix.size() >= 3
+        && request.resource.data.chavePix.size() <= 140
+        && request.resource.data.whatsapp is string
+        && request.resource.data.whatsapp.matches('^[0-9]{0,15}$');
+      allow delete: if euSou(uid) || ehAdmin();
+    }
+
+    match /taxasPlataforma/{viagemId} {
+      function viagem() { return get(/databases/$(database)/documents/viagens/$(viagemId)).data; }
+      function valorTaxa() { return ( (viagem().valor * 2 + 50) / 100 ); }
+      // Permite consultar a taxa antes de ela existir, validando a viagem original.
+      allow get: if ehAdmin() || (logado() && (
+        (resource != null && resource.data.motoristaUid == request.auth.uid) ||
+        (exists(/databases/$(database)/documents/viagens/$(viagemId))
+         && viagem().motoristaUid == request.auth.uid)));
+      allow list: if ehAdmin() || (logado() && resource.data.motoristaUid == request.auth.uid);
+      allow create: if logado()
+        && exists(/databases/$(database)/documents/viagens/$(viagemId))
+        && viagem().status == 'concluida'
+        && viagem().motoristaUid == request.auth.uid
+        && viagem().valor is number && viagem().valor >= 0
+        && request.resource.data.keys().hasOnly(['viagemId','motoristaUid','valorViagemCentavos','taxaCentavos','status','criadoEm'])
+        && request.resource.data.viagemId == viagemId
+        && request.resource.data.motoristaUid == request.auth.uid
+        && request.resource.data.valorViagemCentavos == int(viagem().valor * 100 + 0.5)
+        && request.resource.data.taxaCentavos == int((int(viagem().valor * 100 + 0.5) * 2 + 50) / 100)
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.criadoEm == request.time;
+      allow update: if (ehAdmin()
+        && resource.data.status in ['pendente', 'comprovante_enviado']
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'confirmadoEm', 'confirmadoPor'])
+        && request.resource.data.status == 'paga'
+        && request.resource.data.confirmadoEm == request.time
+        && request.resource.data.confirmadoPor == request.auth.uid)
+        || (logado()
+        && resource.data.motoristaUid == request.auth.uid
+        && resource.data.status in ['pendente','comprovante_enviado']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','comprovanteReferencia','comprovanteEnviadoEm'])
+        && request.resource.data.status == 'comprovante_enviado'
+        && request.resource.data.comprovanteReferencia is string
+        && request.resource.data.comprovanteReferencia.size() >= 3
+        && request.resource.data.comprovanteReferencia.size() <= 250
+        && request.resource.data.comprovanteEnviadoEm == request.time);
+      allow delete: if false;
+    }
+
+    // Melhoria 04: grupos com identificador estável baseado na solicitação pagadora.
+    match /pagamentosColetivos/{grupoId} {
+      allow read: if ehAdmin() || (logado() &&
+        (resource.data.motoristaUid == request.auth.uid || resource.data.pagadorUid == request.auth.uid));
+      allow create: if logado()
+        && request.resource.data.keys().hasOnly(['viagemId','motoristaUid','pagadorUid','pagadorSolicitacaoId','solicitacoesIds','forma','totalCentavos','status','criadoEm'])
+        && grupoId == 'grupo_' + request.resource.data.pagadorSolicitacaoId
+        && request.resource.data.pagadorUid == request.auth.uid
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.criadoEm == request.time
+        && request.resource.data.forma in ['pix','dinheiro','maquininha']
+        && request.resource.data.totalCentavos is int
+        && request.resource.data.totalCentavos > 0
+        && request.resource.data.solicitacoesIds is list
+        && request.resource.data.solicitacoesIds.size() >= 2
+        && request.resource.data.solicitacoesIds.size() <= 4
+        && request.resource.data.pagadorSolicitacaoId in request.resource.data.solicitacoesIds
+        && exists(/databases/$(database)/documents/solicitacoes/$(request.resource.data.pagadorSolicitacaoId))
+        && get(/databases/$(database)/documents/solicitacoes/$(request.resource.data.pagadorSolicitacaoId)).data.passageiroUid == request.auth.uid
+        && get(/databases/$(database)/documents/solicitacoes/$(request.resource.data.pagadorSolicitacaoId)).data.viagemId == request.resource.data.viagemId
+        && get(/databases/$(database)/documents/solicitacoes/$(request.resource.data.pagadorSolicitacaoId)).data.motoristaUid == request.resource.data.motoristaUid
+        && exists(/databases/$(database)/documents/viagens/$(request.resource.data.viagemId))
+        && get(/databases/$(database)/documents/viagens/$(request.resource.data.viagemId)).data.status == 'concluida'
+        && get(/databases/$(database)/documents/viagens/$(request.resource.data.viagemId)).data.motoristaUid == request.resource.data.motoristaUid;
+      allow update: if logado() && resource.data.motoristaUid == request.auth.uid
+        && resource.data.status == 'pendente'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','confirmadoPor','confirmadoEm'])
+        && request.resource.data.status == 'recebido'
+        && request.resource.data.confirmadoPor == request.auth.uid
+        && request.resource.data.confirmadoEm == request.time;
+      allow delete: if false;
+    }
+
+    // Preferência de pagamento por solicitação aceita de viagem concluída.
+    match /pagamentosPassageiro/{solicitacaoId} {
+      function solic() { return get(/databases/$(database)/documents/solicitacoes/$(solicitacaoId)).data; }
+      // Consulta individual pode ocorrer antes do primeiro pagamento ser criado.
+      allow get: if ehAdmin() || (logado() && (
+        (resource != null && (resource.data.passageiroUid == request.auth.uid || resource.data.motoristaUid == request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/solicitacoes/$(solicitacaoId))
+         && (solic().passageiroUid == request.auth.uid || solic().motoristaUid == request.auth.uid))));
+      allow list: if ehAdmin() || (logado() && (resource.data.passageiroUid == request.auth.uid || resource.data.motoristaUid == request.auth.uid));
+      allow create: if (logado()
+        && exists(/databases/$(database)/documents/solicitacoes/$(solicitacaoId))
+        && solic().passageiroUid == request.auth.uid
+        && solic().status in ['aceita','aceito']
+        && exists(/databases/$(database)/documents/viagens/$(solic().viagemId))
+        && get(/databases/$(database)/documents/viagens/$(solic().viagemId)).data.status == 'concluida'
+        && request.resource.data.keys().hasOnly(['passageiroUid','motoristaUid','viagemId','forma','status','criadoEm'])
+        && request.resource.data.passageiroUid == request.auth.uid
+        && request.resource.data.motoristaUid == solic().motoristaUid
+        && request.resource.data.viagemId == solic().viagemId
+        && request.resource.data.forma in ['pix','dinheiro','maquininha']
+        && request.resource.data.status == 'informado'
+        && request.resource.data.criadoEm == request.time) || (logado()
+        && exists(/databases/$(database)/documents/solicitacoes/$(solicitacaoId))
+        && request.resource.data.keys().hasOnly(['passageiroUid','motoristaUid','viagemId','forma','status','grupoId','criadoEm'])
+        && request.resource.data.status == 'reservado_coletivo'
+        && request.resource.data.passageiroUid == solic().passageiroUid
+        && request.resource.data.motoristaUid == solic().motoristaUid
+        && request.resource.data.viagemId == solic().viagemId
+        && solic().status in ['aceita','aceito']
+        && request.resource.data.forma in ['pix','dinheiro','maquininha']
+        && request.resource.data.criadoEm == request.time
+        && existsAfter(/databases/$(database)/documents/pagamentosColetivos/$(request.resource.data.grupoId))
+        && solicitacaoId in getAfter(/databases/$(database)/documents/pagamentosColetivos/$(request.resource.data.grupoId)).data.solicitacoesIds
+        && getAfter(/databases/$(database)/documents/pagamentosColetivos/$(request.resource.data.grupoId)).data.pagadorUid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/pagamentosColetivos/$(request.resource.data.grupoId)).data.viagemId == solic().viagemId
+        && getAfter(/databases/$(database)/documents/pagamentosColetivos/$(request.resource.data.grupoId)).data.motoristaUid == solic().motoristaUid
+        && getAfter(/databases/$(database)/documents/pagamentosColetivos/$(request.resource.data.grupoId)).data.forma == request.resource.data.forma
+        && getAfter(/databases/$(database)/documents/pagamentosColetivos/$(request.resource.data.grupoId)).data.status == 'pendente');
+      allow update: if ehAdmin() || (logado()
+        && resource.data.motoristaUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','confirmadoEm','confirmadoPor'])
+        && resource.data.status == 'informado'
+        && request.resource.data.status == 'recebido'
+        && request.resource.data.confirmadoPor == request.auth.uid
+        && request.resource.data.confirmadoEm == request.time);
+      // O motorista confirma todos os integrantes numa transação única.
+      allow update: if logado() && resource.data.motoristaUid == request.auth.uid
+        && resource.data.status == 'reservado_coletivo'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','confirmadoPor','confirmadoEm'])
+        && request.resource.data.status == 'recebido'
+        && request.resource.data.confirmadoPor == request.auth.uid
+        && request.resource.data.confirmadoEm == request.time
+        && existsAfter(/databases/$(database)/documents/pagamentosColetivos/$(resource.data.grupoId))
+        && getAfter(/databases/$(database)/documents/pagamentosColetivos/$(resource.data.grupoId)).data.status == 'recebido'
+        && solicitacaoId in getAfter(/databases/$(database)/documents/pagamentosColetivos/$(resource.data.grupoId)).data.solicitacoesIds;
+      allow delete: if false;
+    }
+
+    match /solicitacoes/{id} {
+      allow read: if logado() &&
+        (resource.data.passageiroUid == request.auth.uid ||
+         resource.data.motoristaUid == request.auth.uid || ehAdmin());
+      allow create: if logado()
+        && request.resource.data.passageiroUid == request.auth.uid
+        && request.resource.data.motoristaUid is string
+        && request.resource.data.motoristaUid != request.auth.uid
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.vagasSolicitadas is number
+        && request.resource.data.vagasSolicitadas >= 1
+        && request.resource.data.viagemId is string
+        && exists(/databases/$(database)/documents/viagens/$(request.resource.data.viagemId))
+        && get(/databases/$(database)/documents/viagens/$(request.resource.data.viagemId)).data.motoristaUid == request.resource.data.motoristaUid
+        && get(/databases/$(database)/documents/viagens/$(request.resource.data.viagemId)).data.status == 'aberta'
+        && request.resource.data.vagasSolicitadas <= get(/databases/$(database)/documents/viagens/$(request.resource.data.viagemId)).data.vagasDisponiveis;
+      // Embarque: motorista responsável, somente solicitação aceita; sem alterar outros campos.
+      allow update: if logado()
+        && resource.data.motoristaUid == request.auth.uid
+        && resource.data.status in ['aceita', 'aceito']
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.embarcado == true
+        && resource.data.get('embarcado', false) == false
+        && request.resource.data.embarcadoEm == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['embarcado', 'embarcadoEm']);
+      allow update: if ehAdmin()
+        || (logado() && resource.data.passageiroUid == request.auth.uid
+          && resource.data.status == 'pendente'
+          && request.resource.data.status == 'cancelada'
+          && request.resource.data.ocultadaPassageiro == true
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','ocultadaPassageiro','atualizadoEm']))
+        || (logado() && resource.data.passageiroUid == request.auth.uid
+          && resource.data.status in ['aceita','aceito']
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ocultadaPassageiro'])
+          && request.resource.data.ocultadaPassageiro == true
+          && exists(/databases/$(database)/documents/viagens/$(resource.data.viagemId))
+          && get(/databases/$(database)/documents/viagens/$(resource.data.viagemId)).data.status == 'concluida')
+        || (logado() && resource.data.passageiroUid == request.auth.uid
+          && resource.data.status == 'pendente'
+          && request.resource.data.status == 'pendente'
+          && request.resource.data.vagasSolicitadas is int
+          && request.resource.data.vagasSolicitadas >= 1 && request.resource.data.vagasSolicitadas <= 4
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vagasSolicitadas','atualizadoEm'])
+          && exists(/databases/$(database)/documents/viagens/$(resource.data.viagemId))
+          && get(/databases/$(database)/documents/viagens/$(resource.data.viagemId)).data.status == 'aberta'
+          && request.resource.data.vagasSolicitadas <= get(/databases/$(database)/documents/viagens/$(resource.data.viagemId)).data.vagasDisponiveis)
+        || (logado() && resource.data.passageiroUid == request.auth.uid
+          && resource.data.status in ['aceita','aceito']
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.alteracaoVagasPendente == true
+          && request.resource.data.novaQuantidadeVagas is int
+          && request.resource.data.novaQuantidadeVagas >= 1 && request.resource.data.novaQuantidadeVagas <= 4
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['novaQuantidadeVagas','alteracaoVagasPendente','alteracaoSolicitadaEm'])
+          && exists(/databases/$(database)/documents/viagens/$(resource.data.viagemId))
+          && get(/databases/$(database)/documents/viagens/$(resource.data.viagemId)).data.status == 'aberta')
+        || (logado() && resource.data.motoristaUid == request.auth.uid
+          && resource.data.status in ['aceita','aceito']
+          && request.resource.data.status == resource.data.status
+          && resource.data.alteracaoVagasPendente == true
+          && request.resource.data.alteracaoVagasPendente == false
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vagasSolicitadas','novaQuantidadeVagas','alteracaoVagasPendente','alteracaoRespondidaEm'])
+          && !('novaQuantidadeVagas' in request.resource.data)
+          && (request.resource.data.vagasSolicitadas == resource.data.vagasSolicitadas || request.resource.data.vagasSolicitadas == resource.data.novaQuantidadeVagas))
+        || (logado()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'atualizadoEm'])
+        && (
+          (resource.data.passageiroUid == request.auth.uid
+            && request.resource.data.passageiroUid == resource.data.passageiroUid
+            && request.resource.data.status == 'cancelada')
+          ||
+          (resource.data.motoristaUid == request.auth.uid
+            && resource.data.status == 'pendente'
+            && request.resource.data.motoristaUid == resource.data.motoristaUid
+            && request.resource.data.status in ['aceita', 'aceito', 'recusada', 'recusado'])
+        ));
+      allow delete: if ehAdmin() || (logado() &&
+        (resource.data.motoristaUid == request.auth.uid || resource.data.passageiroUid == request.auth.uid));
+    }
+
+    // Chat privado por solicitação aceita: só motorista e passageiro envolvidos.
+    function participanteChat(id) {
+      return logado()
+        && exists(/databases/$(database)/documents/solicitacoes/$(id))
+        && get(/databases/$(database)/documents/solicitacoes/$(id)).data.status in ['aceita', 'aceito']
+        && (get(/databases/$(database)/documents/solicitacoes/$(id)).data.motoristaUid == request.auth.uid
+            || get(/databases/$(database)/documents/solicitacoes/$(id)).data.passageiroUid == request.auth.uid);
+    }
+    match /chats/{solicitacaoId}/mensagens/{mensagemId} {
+      allow read: if participanteChat(solicitacaoId);
+      allow create: if participanteChat(solicitacaoId)
+        && request.resource.data.keys().hasOnly(['texto', 'remetenteUid', 'criadoEm'])
+        && request.resource.data.remetenteUid == request.auth.uid
+        && request.resource.data.texto is string
+        && request.resource.data.texto.size() > 0
+        && request.resource.data.texto.size() <= 1000
+        && request.resource.data.criadoEm == request.time;
+      allow update, delete: if false;
+    }
+
+    match /avaliacoes/{id} {
+      allow read: if logado();
+      allow create: if logado()
+        && (request.resource.data.avaliadorUid == request.auth.uid
+          || request.resource.data.passageiroUid == request.auth.uid)
+        && request.resource.data.nota is number
+        && request.resource.data.nota >= 1 && request.resource.data.nota <= 5;
+      allow update, delete: if ehAdmin();
+    }
+
+
+    // Avaliações gerais do aplicativo: um documento por UID autenticado.
+    // Usuários podem criar/editar apenas sua própria avaliação; admins podem ler tudo.
+    match /avaliacoes_app/{uid} {
+      allow read: if logado();
+      allow create: if euSou(uid)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.nome is string
+        && request.resource.data.perfil in ['passageiro', 'motorista', 'ambos']
+        && request.resource.data.nota is int
+        && request.resource.data.nota >= 1
+        && request.resource.data.nota <= 5
+        && request.resource.data.comentario is string
+        && request.resource.data.comentario.size() >= 3
+        && request.resource.data.comentario.size() <= 1000;
+      allow update: if euSou(uid)
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['nota', 'comentario', 'atualizadoEm'])
+        && request.resource.data.nota is int
+        && request.resource.data.nota >= 1
+        && request.resource.data.nota <= 5
+        && request.resource.data.comentario is string
+        && request.resource.data.comentario.size() >= 3
+        && request.resource.data.comentario.size() <= 1000;
+      allow delete: if ehAdmin();
+    }
+
+    match /denuncias/{id} {
+      // Denúncias: somente autenticados podem criar, com campos e tamanhos limitados.
+      // Apenas administradores podem consultar/moderar os registros.
+      allow create: if logado()
+        && request.resource.data.keys().hasOnly([
+          'alvo', 'motivo', 'descricao', 'denuncianteUid',
+          'denuncianteNome', 'status', 'criadoEm'
+        ])
+        && request.resource.data.denuncianteUid == request.auth.uid
+        && request.resource.data.alvo is string
+        && request.resource.data.alvo.size() >= 2
+        && request.resource.data.alvo.size() <= 120
+        && request.resource.data.motivo in [
+          'comportamento', 'seguranca', 'fraude', 'assedio', 'outro'
+        ]
+        && request.resource.data.descricao is string
+        && request.resource.data.descricao.size() >= 10
+        && request.resource.data.descricao.size() <= 2000
+        && request.resource.data.denuncianteNome is string
+        && request.resource.data.denuncianteNome.size() <= 120
+        && request.resource.data.status == 'pendente';
+      allow read, update, delete: if ehAdmin();
+    }
+
+    // Pedido de exclusao: somente o titular cria ou consulta o proprio pedido.
+    // O administrador pode analisar e atualizar o status.
+
+    match /bloqueios/{id} {
+      allow read, write: if ehAdmin();
+    }
+
+    match /auditoria/{id} {
+      allow read, create: if ehAdmin();
+      allow update, delete: if false;
+    }
+  }
+}

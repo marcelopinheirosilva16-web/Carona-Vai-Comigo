@@ -1,0 +1,3 @@
+# Central de notificações VaiComigo
+
+Sino nas áreas motorista e passageiro, contador de não lidas, atalhos para solicitações e chat. Atualização em tempo real pelo Firestore. Não é push: requer página aberta. Leituras registradas apenas no navegador/dispositivo (localStorage), não sincronizadas entre dispositivos. Mensagens monitoradas nas 20 conversas aceitas mais recentes retornadas pela consulta (a consulta atual não ordena por data). O histórico inicial também pode aparecer como não lido. Sem novas regras Firebase; usa permissões existentes de solicitacoes e chats. Teste com duas contas e confirme as regras antes de publicar.

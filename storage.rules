@@ -1,0 +1,20 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /profilePhotos/{userId}/{fileName} {
+      // Fotos de perfil só podem ser lidas por usuários autenticados.
+      // Considere tornar as fotos privadas se o aplicativo não precisar de leitura ampla.
+      allow read: if request.auth != null;
+
+      // Limite de 5 MiB e tipos de imagem permitidos para envio/substituição.
+      allow create, update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource != null
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+
+      allow delete: if request.auth != null
+        && request.auth.uid == userId;
+    }
+  }
+}

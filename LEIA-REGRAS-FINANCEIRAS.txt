@@ -1,0 +1,9 @@
+VAI COMIGO - REGRAS FINANCEIRAS REVISADAS
+
+Ajuste feito: administradores podem marcar taxas como pagas sem alterar os valores, a identidade do motorista ou os dados originais da viagem. Motoristas continuam podendo registrar uma referencia do comprovante.
+
+ATENCAO: nao publique sem testar em ambiente de desenvolvimento. As regras existentes das outras colecoes foram preservadas e podem exigir ajustes adicionais de compatibilidade.
+
+Passos: 1) salvar copia das regras atuais do Console; 2) abrir vaicomigo/firestore.rules; 3) copiar no Firebase Console > Firestore > Regras; 4) usar o simulador e testar cadastro, viagem, solicitacao, GPS, pagamento e administracao antes de publicar para usuarios reais.
+
+A integracao nao processa Pix automaticamente nem armazena a imagem do comprovante no Firestore; usa referencia textual e WhatsApp.

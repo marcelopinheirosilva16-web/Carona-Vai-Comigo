@@ -1,0 +1,7 @@
+CORREÇÃO HISTÓRICO PASSAGEIRO
+
+A remoção oculta imediatamente a viagem no navegador e tenta gravar ocultadaPassageiro=true no Firestore.
+Se houver erro de permissão, a tela informará: publique as regras de firestore.rules no Firebase Console > Firestore Database > Regras.
+Sem a gravação autorizada, a ocultação local não sincroniza entre aparelhos.
+Os pagamentos e registros administrativos permanecem no Firebase.
+Após substituir os arquivos, abra a pasta correta no VS Code e use Ctrl+F5.

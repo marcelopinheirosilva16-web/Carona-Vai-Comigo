@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="img/icon-192.png">
+  <meta charset="UTF-8">
+  <meta name="description" content="Área administrativa do VaiComigo para gestão, moderação e acompanhamento da plataforma.">
+  <meta name="theme-color" content="#124eae">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VaiComigo - Administracao</title>
+  <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/responsive-2026.css?v=1">
+</head>
+<body>
+  <div class="navbar"><div class="wrap"><div class="brand"><img src="img/logo.jpg" alt="VaiComigo" class="brand-logo"> <span style="font-size:.85rem;color:var(--suave)">Admin</span></div><nav id="menu"></nav></div></div>
+
+  <div class="container">
+    <div id="sem-acesso" style="display:none">
+      <div class="card"><p class="vazio">Acesso restrito a administradores.</p></div>
+    </div>
+
+    <div id="conteudo" style="display:none">
+      <!-- Metricas -->
+      <div class="grid cols-3">
+        <div class="card"><h3 id="m-usuarios">-</h3><p class="meta">Usuarios</p></div>
+        <div class="card"><h3 id="m-viagens">-</h3><p class="meta">Viagens</p></div>
+        <div class="card"><h3 id="m-denuncias">-</h3><p class="meta">Denuncias pendentes</p></div>
+        <div class="card"><h3 id="m-avaliacoes-app">-</h3><p class="meta">Avaliações do aplicativo</p></div>
+        <div class="card"><h3 id="m-media-app">-</h3><p class="meta">Média das estrelas</p></div>
+      </div>
+
+      <section id="vc-admin-alertas" class="card" hidden style="margin:16px 0;border:1px solid #cbd5e1"><button type="button" class="btn" data-sino aria-label="Notificações financeiras">🔔 Notificações financeiras <span data-contador style="background:#b91c1c;color:white;border-radius:20px;padding:2px 8px" hidden></span></button><div data-lista hidden style="margin-top:12px;max-height:360px;overflow:auto" aria-live="polite"></div></section><div class="card" id="vc-financeiro-admin" style="margin-top:18px"><h3>💳 Financeiro — taxas de 2%</h3><p class="meta">Configure o Pix e confira os comprovantes antes de confirmar o recebimento.</p><label>Chave Pix do administrador <input class="input" id="vc-chave-pix" placeholder="Chave Pix"></label><label>WhatsApp do administrador (DDI + DDD + número) <input class="input" id="vc-whatsapp-admin" placeholder="5531999999999"></label><button class="btn" id="vc-salvar-pix">Salvar dados de recebimento</button><div id="vc-taxas-admin">Carregando...</div></div>
+      <div class="card" style="margin-top:18px" id="admin-seguranca-conta">
+        <h3>Segurança da conta administrativa</h3>
+        <p class="meta">A conta de administrador não pode ser bloqueada ou encerrada pelo painel. Confirme sua senha atual para solicitar alterações.</p>
+        <form id="admin-form-senha" onsubmit="atualizarSenhaAdmin(event)">
+          <h4>Alterar senha</h4>
+          <label>Senha atual <input class="input" type="password" id="admin-senha-atual" autocomplete="current-password" required></label>
+          <label>Nova senha <input class="input" type="password" id="admin-senha-nova" autocomplete="new-password" minlength="6" required></label>
+          <button class="btn" type="submit">Alterar senha</button>
+        </form>
+        <form id="admin-form-email" onsubmit="atualizarEmailAdmin(event)" style="margin-top:20px">
+          <h4>Alterar e-mail</h4>
+          <label>Novo e-mail <input class="input" type="email" id="admin-email-novo" autocomplete="email" required></label>
+          <label>Senha atual <input class="input" type="password" id="admin-email-senha" autocomplete="current-password" required></label>
+          <button class="btn" type="submit">Enviar verificação ao novo e-mail</button>
+          <p class="meta">A mudança somente será concluída após confirmar o link recebido no novo endereço. O perfil do Firestore pode precisar ser sincronizado após a confirmação.</p>
+        </form>
+      </div>
+      <div class="card" style="margin-top:18px">
+        <h3>Usuarios</h3>
+        <div id="tab-usuarios"><p class="vazio">Carregando...</p></div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h3>Denuncias</h3>
+        <div id="tab-denuncias"><p class="vazio">Carregando...</p></div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h3>Viagens recentes</h3>
+        <div id="tab-viagens"><p class="vazio">Carregando...</p></div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h3>Avaliações do aplicativo</h3>
+        <p class="meta" style="margin-bottom:12px">Comentários enviados pelos passageiros e motoristas.</p>
+        <div id="tab-avaliacoes-app"><p class="vazio">Carregando avaliações...</p></div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h3>Auditoria (acoes administrativas)</h3>
+        <div id="tab-auditoria"><p class="vazio">Carregando...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/admin.js"></script>
+<footer class="legal-links" style="text-align:center;padding:18px 12px;font-size:.9rem">
+  <a href="privacidade.html">Política de Privacidade</a> ·
+  <a href="politica-seguranca.html">Segurança e uso responsável</a> ·
+  <a href="seguranca.html">Central de Segurança</a>
+<div class="vaicomigo-contato-oficial" style="font-size:12px;text-align:center;padding:10px 12px;color:#536477;line-height:1.6">Email contato: <a href="mailto:caronavaicomigo@gmail.com" style="color:#1565c0;overflow-wrap:anywhere">caronavaicomigo@gmail.com</a></div></footer>
+<script src="js/detalhes-financeiros.js"></script>
+<script src="js/financeiro-admin.js"></script>
+<script src="js/notificacoes-admin-financeiro.js"></script>
+<script src="js/relatorios-financeiros.js"></script>
+  <script src="js/pwa.js" defer></script>
+</body>
+</html>

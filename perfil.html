@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="img/icon-192.png">
+  <meta charset="UTF-8">
+  <meta name="description" content="Gerencie seus dados, foto de perfil e reputação no VaiComigo.">
+  <meta name="theme-color" content="#124eae">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VaiComigo - Perfil</title>
+  <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/responsive-2026.css?v=1">
+</head>
+<body>
+  <div class="navbar"><div class="wrap"><div class="brand"><img src="img/logo.jpg" alt="VaiComigo" class="brand-logo"></div><nav id="menu"></nav></div></div>
+
+  <div class="container">
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Minha foto de perfil</h3>
+        <div class="perfil-foto-area">
+          <img id="p-foto-preview" class="perfil-foto-preview" src="img/avatar-padrao.svg" alt="Foto de perfil">
+          <div class="perfil-foto-controles">
+            <p class="meta">Escolha uma foto sua para que passageiros e motoristas reconheçam seu perfil.</p>
+            <label for="p-foto" class="btn ghost sm">Escolher foto</label>
+            <input type="file" id="p-foto" accept="image/jpeg,image/png,image/webp" hidden>
+            <button type="button" id="p-foto-enviar" class="btn sm" onclick="enviarFotoPerfil()">Enviar foto</button>
+            <p class="meta">JPG, PNG ou WEBP. Tamanho máximo: 5 MB.</p>
+          </div>
+        </div>
+        <hr style="margin:20px 0;border:none;border-top:1px solid var(--borda)">
+        <h3>Meus dados</h3>
+        <form onsubmit="salvarPerfil(event)">
+          <div class="form-group"><label>Nome</label><input type="text" id="p-nome"></div>
+          <div class="form-group"><label>Telefone</label><input type="tel" id="p-telefone"></div>
+          <div class="form-group"><label>Cidade</label><input type="text" id="p-cidade"></div>
+          <div class="form-group"><label>Sobre voce</label><textarea id="p-bio" placeholder="Conte um pouco sobre voce"></textarea></div>
+          <div class="form-group">
+            <label><input type="checkbox" id="p-motorista" style="width:auto;margin-right:8px">Quero oferecer caronas (motorista)</label>
+          </div>
+          <button type="submit" class="btn">Salvar alteracoes</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Reputacao</h3>
+        <p class="meta">Nota media: <strong id="p-nota">-</strong> (<span id="p-total">0</span> avaliacoes)</p>
+        <h3 style="margin-top:18px">Avaliacoes recebidas</h3>
+        <div id="lista-avaliacoes"><p class="vazio">Carregando...</p></div>
+
+        <hr style="margin:18px 0;border:none;border-top:1px solid var(--borda)">
+        <h3>Seguranca da conta</h3>
+        <button class="btn ghost sm" onclick="reenviarReset()">Redefinir senha por e-mail</button>
+        <button class="btn vermelho sm" onclick="logout()" style="margin-left:8px">Sair da conta</button>
+        <div id="exclusao-conta-area" style="margin-top:22px;padding-top:16px;border-top:1px solid var(--borda)">
+          <h3>Excluir minha conta</h3>
+          <p class="meta">A exclusão encerra seu acesso e remove dados básicos do perfil. Registros de viagens, solicitações e pagamentos permanecem armazenados. Resolva pendências antes de continuar.</p>
+          <button type="button" class="btn vermelho sm" id="btn-excluir-conta" onclick="solicitarExclusaoConta()">Excluir minha conta</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/perfil.js"></script>
+<footer class="legal-links" style="text-align:center;padding:18px 12px;font-size:.9rem">
+  <a href="privacidade.html">Política de Privacidade</a> ·
+  <a href="politica-seguranca.html">Segurança e uso responsável</a> ·
+  <a href="seguranca.html">Central de Segurança</a>
+<div class="vaicomigo-contato-oficial" style="font-size:12px;text-align:center;padding:10px 12px;color:#536477;line-height:1.6">Email contato: <a href="mailto:caronavaicomigo@gmail.com" style="color:#1565c0;overflow-wrap:anywhere">caronavaicomigo@gmail.com</a></div></footer>
+  <script src="js/pwa.js" defer></script>
+</body>
+</html>

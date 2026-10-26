@@ -1,0 +1,1 @@
+Central de Ajuda adicionada nesta versao. Arquivos novos/alterados: index.html e central-ajuda.html. Nenhum JS do Firebase, regra ou pagamento foi modificado. Abra index.html e clique no botao ? no canto inferior direito.

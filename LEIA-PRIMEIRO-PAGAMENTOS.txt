@@ -1,0 +1,14 @@
+VAI COMIGO - CORRECAO DOS PAGAMENTOS
+
+1. Abra a pasta vaicomigo no VS Code e execute index.html pelo Live Server.
+2. No motorista.html, cadastre sua chave Pix em Receber do passageiro.
+3. Aceite uma solicitacao. Em passageiro.html, desca ate Escolha como pagar sua carona.
+4. Selecione Pix, dinheiro ou maquininha e confirme.
+5. A taxa de 2% so sera gerada depois que a viagem estiver concluida.
+6. No admin.html, entre com usuario cujo documento usuarios/{uid} tenha admin: true, configure Pix e WhatsApp.
+7. Copie o firestore.rules para o console Firestore APENAS DEPOIS de testar as permissoes em ambiente de teste. Nao use a regra generica allow read, write: if request.auth != null.
+8. WhatsApp: abre uma conversa para enviar a imagem manualmente; nao anexa nem confirma comprovante automaticamente.
+9. Pagamento Pix real e confirmacao bancaria NAO sao automaticos.
+10. Se nao aparecer a secao, confirme a URL do Live Server e use Ctrl+F5.
+
+IMPORTANTE: Regras podem bloquear funcionalidades anteriores; teste cadastro, viagens, GPS e solicitacoes antes de usar em producao.

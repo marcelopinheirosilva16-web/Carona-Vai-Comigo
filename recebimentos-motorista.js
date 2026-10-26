@@ -1,0 +1,12 @@
+/* Confirmação MANUAL de recebimento da carona. Nunca confirma automaticamente. */
+(function(){'use strict';var el=document.getElementById('vc-recebimentos-motorista');if(!el)return;
+
+function codigoViagem(id){return 'VC-'+String(id||'').slice(0,10).toUpperCase();}
+function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function erro(e){console.error('Recebimentos:',e);el.textContent='Erro ao carregar recebimentos: '+(e.message||e);}
+var unsub=null;firebase.auth().onAuthStateChanged(function(u){if(unsub)unsub();if(!u){el.textContent='Faça login.';return;}
+unsub=db.collection('pagamentosPassageiro').where('motoristaUid','==',u.uid).onSnapshot(function(s){var items=[];s.forEach(function(d){items.push({id:d.id,x:d.data()});});
+el.innerHTML=items.length?items.map(function(i){var x=i.x,ok=x.status==='recebido';return '<div class="card" style="margin:10px 0"><strong>Viagem '+esc(x.viagemId)+'</strong><div data-detalhe-pag="'+esc(i.id)+'" style="margin-top:6px">Carregando detalhes...</div><p>Forma: '+esc(x.forma)+' · '+(ok?'Recebimento confirmado':'Aguardando recebimento')+'</p>'+(ok?'':x.status==='reservado_coletivo'?'<p>Registro coletivo anterior: regularize este pagamento antes de confirmar.</p>':'<button type="button" class="btn" data-confirmar="'+esc(i.id)+'">Confirmar que recebi o pagamento</button>')+'</div>';}).join(''):'<p>Não há pagamentos informados. Após concluir uma viagem, o passageiro poderá selecionar a forma de pagamento.</p>';
+items.forEach(function(i){var slot=Array.from(el.querySelectorAll('[data-detalhe-pag]')).find(function(n){return n.getAttribute('data-detalhe-pag')===i.id;});if(!slot)return;window.vcDetalhesFinanceiros.get(i.x.viagemId,i.x.motoristaUid,i.id).then(function(d){if(!slot.isConnected)return;slot.innerHTML='<p><b>Código:</b> '+esc(d.codigo)+'<br><b>Passageiro:</b> '+esc(d.passageiro)+'<br><b>Origem:</b> '+esc(d.origem)+'<br><b>Destino:</b> '+esc(d.destino)+'<br><b>Conclusão:</b> '+esc(d.conclusao)+'</p>';});});
+el.querySelectorAll('[data-confirmar]').forEach(function(b){b.onclick=function(){if(!confirm('Você verificou pessoalmente o recebimento deste pagamento?'))return;b.disabled=true;db.collection('pagamentosPassageiro').doc(b.dataset.confirmar).update({status:'recebido',confirmadoPor:u.uid,confirmadoEm:firebase.firestore.FieldValue.serverTimestamp()}).catch(erro).finally(function(){b.disabled=false;});};});
+},erro);});})();
